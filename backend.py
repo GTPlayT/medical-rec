@@ -8,9 +8,9 @@ import numpy as np
 
 @dataclass
 class APIConstants:
-    postman_api = "PMAK-677ff2c648c08b0001df02bf-ea7ee0a47c494d2d681361b0483309c11e"
-    collection_uid = "26923816-960df2f2-e345-4209-98fc-f2e4f04a417d"
-    google_api = "AIzaSyDAEjf-1pp9S7QW2lRVAsat5wMv52UlMmw"
+    postman_api = ""
+    collection_uid = ""
+    google_api = ""
 
 practo_specializations = [
     "ophthalmologist",
@@ -216,7 +216,6 @@ def find_doctors_pipeline(lat, lng, rad, symptoms, model: SentenceTransformer):
     max_match = np.argmax(model.similarity(emb1, emb2).cpu().numpy())
     return find_doctors(lat, lng, rad, practo_specializations[max_match])
     
-
 
 if __name__ == "__main__":
     symptom = str(input("How are you feeling today? > "))
