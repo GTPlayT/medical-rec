@@ -91,7 +91,6 @@
                 center: { lat: 28.625628, lng: 77.433419 }, // Default center
                 zoom: 12,
             });
-
             // Allow user to pin location
             map.addListener("click", (event) => {
                 if (userMarker) {
@@ -211,7 +210,12 @@
                                             <p class="card-text">Specialization: ${doctor.specializations}</p>
                                             <p class="card-text">Experience: ${doctor.experience}</p>
                                             <p class="card-text">Address: ${doctor.clinic_address}</p>
+
+                                            <!-- Add generated summary here -->
+                                            <p class="card-text"><strong>Summary:</strong> ${doctor.generated_summary || 'No summary available'}</p>
+
                                             <a href="${doctor.profile_url}" class="btn btn-custom" target="_blank">View Profile</a>
+
                                         </div>
                                     </div>
                                 </div>
@@ -226,6 +230,7 @@
                 });
             });
         });
+        console.log()
     </script>
 </body>
 </html>
