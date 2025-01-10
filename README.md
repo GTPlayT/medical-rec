@@ -1,6 +1,6 @@
 # Healthcare Management System
 
-This project is part of the Postman API Hackathon, aiming to build a comprehensive Healthcare Management System that integrates various features to streamline patient care and hospital management. The system utilizes APIs for efficient workflows and data management.
+This project is part of the Postman API Hackathon, aiming to build a comprehensive Healthcare Management System that integrates various features to find the nearest doctors available with their profiles and generative summary on an interactive map.
 
 ## Features :
 * Nearby Hospital Locator
