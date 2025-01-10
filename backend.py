@@ -1,16 +1,26 @@
+from flask import Flask, request, jsonify
 import requests
 from bs4 import BeautifulSoup
 import re
+import json
 from dataclasses import dataclass
-
 from sentence_transformers import SentenceTransformer
 import numpy as np
+from flask_cors import CORS
+import concurrent
+from concurrent.futures import ThreadPoolExecutor
 
 @dataclass
 class APIConstants:
     postman_api = ""
     collection_uid = ""
     google_api = ""
+    gemini_api = ""
+
+model = SentenceTransformer("all-MiniLM-L6-v2")
+app = Flask(__name__)
+CORS(app)
+
 
 practo_specializations = [
     "ophthalmologist",
@@ -57,41 +67,35 @@ def find_doctors_google(latitude, longitude, radius=500):
                 "opening_hours": result.get("opening_hours", {}).get("weekday_text", []),
                 "lat": result.get("geometry", {}).get("location", {}).get("lat"),
                 "lng": result.get("geometry", {}).get("location", {}).get("lng"),
-                "html_attribution": re.search(r'href="(.*?)"', result.get("photos", [{}])[0].get("html_attributions", [])[0]).group(1) 
-                if result.get("photos") and result.get("photos", [{}])[0].get("html_attributions") else None,
             }
             doctors.append(doctor_info)
         return doctors
     else:
-        print(f"Error: {response.status_code}, {response.text}")
-        return []   
+        return {"error": f"Error: {response.status_code}, {response.text}"}
 
 def practo_search(city, speciality):
     doctors = []
-
     for page in range(1, 4):
         url = f"https://www.practo.com/{city}/{speciality}?page={page}"
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
-        
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+        }
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
             soup = BeautifulSoup(response.content, 'html.parser')
             doctor_cards = soup.find_all('div', class_='listing-doctor-card')
-            
             if not doctor_cards:
                 break
-            
             for card in doctor_cards:
                 doctor_name_tag = card.find('h2', {'data-qa-id': 'doctor_name'})
                 doctor_name = doctor_name_tag.get_text(strip=True) if doctor_name_tag else 'N/A'
-                
+
                 experience_tag = card.find('div', {'data-qa-id': 'doctor_experience'})
                 doctor_experience = experience_tag.get_text(strip=True) if experience_tag else 'N/A'
-                
+
                 locality_tag = card.find('span', {'data-qa-id': 'practice_locality'})
                 practice_locality = locality_tag.get_text(strip=True) if locality_tag else 'N/A'
-                
+
                 city_tag = card.find('span', {'data-qa-id': 'practice_city'})
                 practice_city = city_tag.get_text(strip=True) if city_tag else 'N/A'
 
@@ -108,8 +112,8 @@ def practo_search(city, speciality):
                 doctors.append(doctor)
         else:
             break
-        
     return doctors
+
 
 def fetch_doctor_profile(profile_url):
     headers = {
@@ -186,39 +190,125 @@ def fetch_doctor_profile(profile_url):
     else:
         print(f"Failed to retrieve profile data: {response.status_code}")
         return None
+    
+def prompt_generate(doctor):
+    prompt = (
+        "### Instruction: \n"
+        "You are a Doctor recommendation expert. "
+        "Your job is to go through what a Doctor has written about themselves and summarize it. "
+        "You will be given Doctor's name, experience, specializations, experience and their clinic location. "
+        "Use this information to generate a good summary while highlight the things mentioned in bold. "
+        "You may use ** ** to highlight these information. "
+        "### Input: \n"
+        f"Doctor's name: {doctor['name']} \n"
+        f"Doctor's specializations: {doctor['specializations']} \n"
+        f"Doctor's experience: {doctor['experience']} \n"
+        f"Doctor's self summary: {doctor['summary']} \n"
+        f"Doctor's clinic's address: {doctor['clinic_address']} \n"
+        "### Output: \n"
+    )
+    return prompt
+
+def doctor_summary(doctor):
+    doctor_prompt = prompt_generate(doctor)
+    base_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+    try:
+        payload = {
+            "contents": [{
+                "parts": [{"text": doctor_prompt}]
+            }]
+        }
+        headers = {
+            "Content-Type": "application/json"
+        }
+        response = requests.post(
+            f"{base_url}?key={APIConstants.gemini_api}",
+            headers=headers,
+            data=json.dumps(payload)
+        )
+        if response.status_code == 200:
+            result = response.json()
+            if "candidates" in result and len(result["candidates"]) > 0:
+                generated_text = result["candidates"][0]["content"]["parts"][0]["text"]
+                return generated_text
+        else:
+            return f"Error: {response.status_code}, {response.text}"
+    except Exception as e:
+        return f"An error occurred while generating content: {e}"
 
 def find_doctors(lat, lng, rad, speciality):
     doctors = find_doctors_google(lat, lng, rad)
     cities = set()
     localities = set()
-    
+
     for doctor in doctors:
         cities.add(format_string(doctor['city']))
         localities.add(format_string(doctor['locality']))
-    
-    final_doctors = list()
-    for city in cities:
+
+    def fetch_doctors_by_city(city):
+        fetched_doctors = []
         doctors = practo_search(city, speciality)
         for doctor in doctors:
             if doctor['locality'] in localities:
-                final_doctors.append(doctor)
+                fetched_doctors.append(doctor)
+        return fetched_doctors
 
-    for i, doctor in enumerate(final_doctors):
-        doctor = fetch_doctor_profile(doctor['profile'])
-        final_doctors[i] = doctor
+    def fetch_profiles(doctor):
+        return fetch_doctor_profile(doctor['profile'])
+
+    def add_summary(doctor):
+        summary = doctor_summary(doctor)  
+        doctor['generated_summary'] = summary
+        return doctor
+
+    final_doctors = []
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        all_doctors = []
+
+        future_to_city = {executor.submit(fetch_doctors_by_city, city): city for city in cities}
+        for future in concurrent.futures.as_completed(future_to_city):
+            all_doctors.extend(future.result())
+
+        future_to_profiles = [executor.submit(fetch_profiles, doctor) for doctor in all_doctors]
+        intermediate_doctors = []
+        for future in concurrent.futures.as_completed(future_to_profiles):
+            intermediate_doctors.append(future.result())
+
+        future_to_summaries = [executor.submit(add_summary, doctor) for doctor in intermediate_doctors]
+        for future in concurrent.futures.as_completed(future_to_summaries):
+            final_doctors.append(future.result())
 
     return final_doctors
 
-def find_doctors_pipeline(lat, lng, rad, symptoms, model: SentenceTransformer):
-    symptoms = [symptoms] * len(practo_specializations)
-    emb1 = model.encode(symptom, convert_to_numpy=True)
-    emb2 = model.encode(practo_specializations, convert_to_numpy=True)
-    max_match = np.argmax(model.similarity(emb1, emb2).cpu().numpy())
-    return find_doctors(lat, lng, rad, practo_specializations[max_match])
-    
+@app.route('/find-doctors', methods=['POST'])
+def find_doctors_endpoint():
+    data = request.json
+    lat = data.get('latitude')
+    lng = data.get('longitude')
+    radius = data.get('radius', 5000)
+    speciality = data.get('speciality', "doctor")
+    doctors = find_doctors(lat, lng, radius, speciality)
+    return jsonify(doctors)
 
-if __name__ == "__main__":
-    symptom = str(input("How are you feeling today? > "))
-    model = SentenceTransformer("all-MiniLM-L6-v2")
-    doctors = find_doctors_pipeline(28.625628, 77.433419, 50000, symptom, model)
+@app.route('/find-doctors-by-symptoms', methods=['POST'])
+def find_doctors_by_symptoms():
+    data = request.json
+    lat = data.get('latitude')
+    lng = data.get('longitude')
+    radius = data.get('radius', 5000)
+    symptoms = data.get('symptoms')
+
+    if not symptoms:
+        return jsonify({"error": "Symptoms are required"}), 400
+
+    symptom_embeddings = model.encode([symptoms] * len(practo_specializations), convert_to_numpy=True)
+    specialization_embeddings = model.encode(practo_specializations, convert_to_numpy=True)
+    max_match_index = np.argmax([np.dot(symptom_embeddings[i], specialization_embeddings[i]) for i in range(len(practo_specializations))])
+
+    speciality = practo_specializations[max_match_index]
+    doctors = find_doctors(lat, lng, radius, speciality)
     print(doctors)
+    return jsonify(doctors)
+
+if __name__ == '__main__':
+    app.run(debug=True)
