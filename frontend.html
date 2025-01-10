@@ -13,8 +13,6 @@
         body {
             background-color: #e8f5e9;
             font-family: 'Arial', sans-serif;
-            position: relative;
-            overflow: hidden;
         }
         .container {
             margin-top: 50px;
@@ -29,138 +27,98 @@
             padding: 20px;
             text-align: center;
             border-radius: 8px;
-            z-index: 1; /* Ensure header stays on top */
         }
         .btn-custom {
             background-color: #007bff;
             color: white;
         }
-        .doctor-card {
-            margin-top: 20px;
-        }
-        .icon-background {
-            position: absolute;
-            font-size: 40px; /* Reduced font size */
-            color: #a5d6a7;
-            opacity: 0.3;
-            z-index: 0; /* Make sure icons are behind all content */
-            pointer-events: none; /* Prevent icons from blocking interaction */
-        }
-
-        /* Prevent content from overlapping with the header */
-        .header, .container {
-            z-index: 2;
-            position: relative;
+        .spinner {
+            display: none;
+            margin: 20px auto;
         }
     </style>
 </head>
 <body>
-    <!-- Background Icons -->
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const icons = ["fa-heart", "fa-stethoscope", "fa-temperature-high", "fa-mug-hot"];
-            const bodyWidth = document.body.offsetWidth;
-            const bodyHeight = document.body.offsetHeight;
-
-            // Array to track positions of icons
-            let positions = [];
-
-            // Function to check if a position is too close to an existing position
-            function isPositionValid(x, y, minDist = 100) {
-                for (let i = 0; i < positions.length; i++) {
-                    const [px, py] = positions[i];
-                    const dist = Math.sqrt(Math.pow(px - x, 2) + Math.pow(py - y, 2));
-                    if (dist < minDist) {
-                        return false;
-                    }
-                }
-                return true;
-            }
-
-            // Generate icons
-            for (let i = 0; i < 50; i++) {  <!-- Increased number of icons -->
-                let x, y;
-
-                // Try 100 times to find a valid position
-                for (let attempt = 0; attempt < 100; attempt++) {
-                    x = Math.random() * bodyWidth;
-                    y = Math.random() * bodyHeight;
-
-                    if (isPositionValid(x, y)) {
-                        positions.push([x, y]);  // Store valid position
-                        break;
-                    }
-                }
-
-                // Create and position the icon
-                const icon = document.createElement("i");
-                icon.className = `fa-solid ${icons[Math.floor(Math.random() * icons.length)]} icon-background`;
-                icon.style.left = `${x}px`;
-                icon.style.top = `${y}px`;
-
-                document.body.appendChild(icon);
-            }
-        });
-    </script>
-
     <div class="container">
         <div class="header">
             <h1><i class="fa-solid fa-user-doctor"></i> Find Your Doctor</h1>
-            <p>Enter your location, symptoms, and search radius to find the best doctors near you!</p>
+            <p>Pin your location, enter symptoms, and search radius to find the best doctors near you!</p>
         </div>
 
         <form id="doctor-search-form">
             <div class="row">
-                <div class="col-md-4">
-                    <label for="location" class="form-label">Location</label>
-                    <input type="text" id="location" class="form-control" placeholder="Enter location (latitude,longitude)" required>
-                </div>
-                <div class="col-md-4">
+                <div class="col-md-6">
                     <label for="symptoms" class="form-label">Symptoms</label>
                     <input type="text" id="symptoms" class="form-control" placeholder="Describe your symptoms" required>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-6">
                     <label for="radius" class="form-label">Radius (meters)</label>
                     <input type="number" id="radius" class="form-control" placeholder="Enter search radius" required>
                 </div>
             </div>
             <div class="text-center mt-4">
                 <button type="submit" class="btn btn-custom btn-lg">Search Doctors</button>
+                <div class="spinner-border text-primary spinner" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
             </div>
         </form>
 
         <div class="map-container" id="map"></div>
-
-        <div id="doctor-list" class="row"></div>
+        <div id="doctor-list" class="row mt-3"></div>
     </div>
 
     <script>
-        let map;
-        let markers = [];
+        let map, userMarker, markers = [];
 
-        function initMap(center = { lat: 28.625628, lng: 77.433419 }) {
+        // Initialize map
+        function initMap() {
             map = new google.maps.Map(document.getElementById("map"), {
-                center,
+                center: { lat: 28.625628, lng: 77.433419 }, // Default center
                 zoom: 12,
+            });
+
+            // Allow user to pin location
+            map.addListener("click", (event) => {
+                if (userMarker) {
+                    userMarker.setMap(null);
+                }
+
+                // Add a custom marker for the user
+                userMarker = new google.maps.Marker({
+                    position: event.latLng,
+                    map: map,
+                    title: "Your Location",
+                    icon: {
+                        url: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png", // Custom blue pin
+                    },
+                });
             });
         }
 
+        // Add doctor markers
         function addMarker(doctor) {
             const marker = new google.maps.Marker({
-                position: { lat: parseFloat(doctor.clinic_location.latitude), lng: parseFloat(doctor.clinic_location.longitude) },
+                position: { 
+                    lat: parseFloat(doctor.clinic_location.latitude), 
+                    lng: parseFloat(doctor.clinic_location.longitude) 
+                },
                 map: map,
                 title: doctor.name,
             });
+
             markers.push(marker);
 
             const infoWindow = new google.maps.InfoWindow({
                 content: `<div><strong>${doctor.name}</strong><br>${doctor.specializations}<br>${doctor.clinic_address}</div>`
             });
+
             marker.addListener("click", () => {
                 infoWindow.open(map, marker);
             });
         }
 
+        // Clear existing markers
         function clearMarkers() {
             markers.forEach(marker => marker.setMap(null));
             markers = [];
@@ -171,18 +129,26 @@
 
             $("#doctor-search-form").on("submit", function (e) {
                 e.preventDefault();
-                const location = $("#location").val().split(",");
                 const symptoms = $("#symptoms").val();
                 const radius = $("#radius").val();
 
-                if (location.length !== 2) {
-                    alert("Please enter a valid location in the format latitude,longitude");
+                if (!userMarker) {
+                    alert("Please pin your location on the map!");
                     return;
                 }
 
-                const [latitude, longitude] = location.map(Number);
-                const data = { latitude, longitude, radius, symptoms };
+                const location = userMarker.getPosition();
+                const data = {
+                    latitude: location.lat(),
+                    longitude: location.lng(),
+                    radius,
+                    symptoms,
+                };
 
+                // Show loading spinner
+                $(".spinner").show();
+
+                // Send data to backend
                 $.ajax({
                     url: "http://127.0.0.1:5000/find-doctors-by-symptoms",
                     method: "POST",
@@ -191,19 +157,20 @@
                     success: (response) => {
                         $("#doctor-list").empty();
                         clearMarkers();
+                        $(".spinner").hide();
 
                         if (response.length === 0) {
                             $("#doctor-list").html("<p class='text-center mt-4'>No doctors found in the specified area.</p>");
                             return;
                         }
 
-                        map.setCenter({ lat: latitude, lng: longitude });
+                        map.setCenter(location);
 
                         response.forEach((doctor) => {
                             addMarker(doctor);
                             $("#doctor-list").append(`
                                 <div class="col-md-4">
-                                    <div class="card doctor-card">
+                                    <div class="card">
                                         <img src="${doctor.profile_image_url}" class="card-img-top" alt="Doctor Image">
                                         <div class="card-body">
                                             <h5 class="card-title">${doctor.name}</h5>
@@ -219,6 +186,7 @@
                     },
                     error: (err) => {
                         console.error(err);
+                        $(".spinner").hide();
                         alert("An error occurred while searching for doctors.");
                     },
                 });
