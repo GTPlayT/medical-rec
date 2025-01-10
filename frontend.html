@@ -13,13 +13,18 @@
         body {
             background-color: #e8f5e9;
             font-family: 'Arial', sans-serif;
+            position: relative;
         }
         .container {
             margin-top: 50px;
+            position: relative;
+            z-index: 2;
         }
         .map-container {
             height: 400px;
             margin-top: 20px;
+            position: relative;
+            z-index: 1;
         }
         .header {
             background-color: #007bff;
@@ -27,6 +32,8 @@
             padding: 20px;
             text-align: center;
             border-radius: 8px;
+            z-index: 3;
+            position: relative;
         }
         .btn-custom {
             background-color: #007bff;
@@ -35,6 +42,13 @@
         .spinner {
             display: none;
             margin: 20px auto;
+        }
+        .fa-icon {
+            position: absolute;
+            font-size: 24px; /* Smaller size */
+            color: lightgreen;
+            z-index: 0;
+            transition: all 0.3s ease; /* Smooth transition for movement */
         }
     </style>
 </head>
@@ -117,15 +131,35 @@
                 infoWindow.open(map, marker);
             });
         }
-
         // Clear existing markers
         function clearMarkers() {
             markers.forEach(marker => marker.setMap(null));
             markers = [];
         }
+        // Generate random icons on the page
+        // Generate random icons on the page
+        function generateIcons() {
+            const icons = [
+                "fa-heart", "fa-stethoscope", "fa-temperature-high", "fa-mug-hot"
+            ];
 
+            for (let i = 0; i < 50; i++) {
+                const iconClass = icons[Math.floor(Math.random() * icons.length)];
+                const icon = $('<i>')
+                    .addClass(`fa ${iconClass} fa-icon`)
+                    .css({
+                        top: `${Math.random() * 100}%`,  // Spread across 100% of the height
+                        left: `${Math.random() * 100}%`, // Spread across 100% of the width
+                        transform: `translate(-50%, -50%)`, // Centering each icon
+                        fontSize: `${Math.random() * 12 + 18}px`, // Random size between 18px and 30px
+                    });
+
+                $('body').append(icon);
+            }
+        }
         $(document).ready(() => {
             initMap();
+            generateIcons();
 
             $("#doctor-search-form").on("submit", function (e) {
                 e.preventDefault();
