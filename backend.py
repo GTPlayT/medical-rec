@@ -307,7 +307,6 @@ def find_doctors_by_symptoms():
 
     speciality = practo_specializations[max_match_index]
     doctors = find_doctors(lat, lng, radius, speciality)
-    print(doctors)
     return jsonify(doctors)
 
 if __name__ == '__main__':
