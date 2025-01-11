@@ -1,0 +1,46 @@
+body {
+    background-color: #e8f5e9;
+    font-family: 'Arial', sans-serif;
+    position: relative;
+}
+
+.container {
+    margin-top: 50px;
+    position: relative;
+    z-index: 2;
+}
+
+.map-container {
+    height: 400px;
+    margin-top: 20px;
+    position: relative;
+    z-index: 1;
+}
+
+.header {
+    background-color: #007bff;
+    color: white;
+    padding: 20px;
+    text-align: center;
+    border-radius: 8px;
+    z-index: 3;
+    position: relative;
+}
+
+.btn-custom {
+    background-color: #007bff;
+    color: white;
+}
+
+.spinner {
+    display: none;
+    margin: 20px auto;
+}
+
+.fa-icon {
+    position: absolute;
+    font-size: 24px; /* Smaller size */
+    color: lightgreen;
+    z-index: 0;
+    transition: all 0.3s ease; /* Smooth transition for movement */
+}
