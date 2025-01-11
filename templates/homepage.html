@@ -9,13 +9,14 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAOVYRIgupAurZup5y1PRh8Ismb1A3lLao"></script>
-    <script src="script.js"></script>
-    <link rel="stylesheet" href="styles.css">
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
 </head>
 <body>
 <div class="container">
     <div class="header">
-        <h1><i class="fa-solid fa-user-doctor"></i> Find Your Doctor</h1>
+        <h1><i class="fa-solid fa-user-doctor"></i> Search Your Doctor</h1>
         <p>Pin your location, enter symptoms, and search radius to find the best doctors near you!</p>
     </div>
 
@@ -26,8 +27,20 @@
                 <input type="text" id="symptoms" class="form-control" placeholder="Describe your symptoms" required>
             </div>
             <div class="col-md-6">
-                <label for="radius" class="form-label">Radius (meters)</label>
-                <input type="number" id="radius" class="form-control" placeholder="Enter search radius" required>
+                <label for="radiusDropdown" class="form-label">Vicinity</label>
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle w-100 text-start d-flex align-items-center justify-content-between" 
+                            type="button" id="radiusDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="selected-text">Closeby (around 5 Km)</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <ul class="dropdown-menu w-100" aria-labelledby="radiusDropdown">
+                        <li><a class="dropdown-item d-flex align-items-center" href="#" data-value="1000"><i class="fas fa-map-marker-alt me-2 text-danger"></i>Very Close (around 1 Km)</a></li>
+                        <li><a class="dropdown-item d-flex align-items-center" href="#" data-value="5000"><i class="fas fa-map-marker-alt me-2 text-warning"></i>Close by (around 5 Km)</a></li>
+                        <li><a class="dropdown-item d-flex align-items-center" href="#" data-value="50000"><i class="fas fa-map-marker-alt me-2 text-success"></i>Far (around 50 Km)</a></li>
+                    </ul>
+                </div>
+                <input type="hidden" id="radius" value="5000" />
             </div>
         </div>
         <div class="text-center mt-4">

@@ -1,28 +1,79 @@
 let map, userMarker, markers = [];
 
-function initMap() {
-    map = new google.maps.Map(document.getElementById("map"), {
-        center: { lat: 28.625628, lng: 77.433419 },
-        zoom: 12,
+document.addEventListener("DOMContentLoaded", function () {
+    const radiusDropdown = document.getElementById("radiusDropdown");
+    const radiusInput = document.getElementById("radius");
+    const dropdownItems = document.querySelectorAll(".dropdown-item");
+
+    dropdownItems.forEach((item) => {
+        item.addEventListener("click", (e) => {
+            e.preventDefault();
+            const value = item.getAttribute("data-value");
+            const text = item.textContent.trim();
+
+            // Update the dropdown button text
+            radiusDropdown.querySelector(".selected-text").textContent = text;
+
+            // Update the hidden input value
+            radiusInput.value = value;
+
+            console.log(`Selected radius: ${value} meters`);
+        });
     });
+});
+
+function initMap() {
+    const defaultLocation = { lat: 28.363880, lng: 75.587010 };
+
+    map = new google.maps.Map(document.getElementById("map"), {
+        center: defaultLocation,
+        zoom: 15,
+    });
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const userLocation = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude,
+                };
+
+                map.setCenter(userLocation);
+
+                userMarker = new google.maps.Marker({
+                    position: userLocation,
+                    map: map,
+                    title: "Your Location",
+                    icon: {
+                        url: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+                    },
+                });
+            },
+            (error) => {
+                console.warn("Geolocation failed or was denied. Using default location.");
+            }
+        );
+    } else {
+        console.warn("Geolocation is not supported by this browser. Using default location.");
+    }
+
     map.addListener("click", (event) => {
         if (userMarker) {
             userMarker.setMap(null);
         }
 
-        // Add a custom marker for the user
         userMarker = new google.maps.Marker({
             position: event.latLng,
             map: map,
             title: "Your Location",
             icon: {
-                url: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png", // Custom blue pin
+                url: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
             },
         });
     });
 }
 
-// Add doctor markers
+
 function addMarker(doctor) {
     const marker = new google.maps.Marker({
         position: { 
@@ -36,26 +87,40 @@ function addMarker(doctor) {
     markers.push(marker);
 
     const formattedSpecializations = doctor.specializations
-    ? doctor.specializations
-          .replace(/,\s*/g, ', ')
-          .replace(/\s*\/\s*/g, ' / ')
-    : 'Not specified';
+        ? doctor.specializations
+              .replace(/,\s*/g, ', ')
+              .replace(/\s*\/\s*/g, ' / ')
+        : 'Not specified';
+
+    const googleMapsLink = `https://www.google.com/maps?q=${doctor.clinic_location.latitude},${doctor.clinic_location.longitude}`;
 
     const infoWindow = new google.maps.InfoWindow({
-        content: `<div><strong>${doctor.name}</strong><br>₹${doctor.consultation_fee}<br>${formattedSpecializations}<br>${doctor.clinic_address}</div>`
+        content: `
+            <div style="text-align: center;">
+                <a href="${googleMapsLink}" target="_blank" title="View Location on Google Maps">
+                    <img src="${doctor.profile_image_url}" alt="${doctor.name}" 
+                         style="width: 100px; height: 100px; border-radius: 50%; margin-bottom: 10px;">
+                </a>
+                <br>
+                <strong>${doctor.name}</strong><br>
+                ₹${doctor.consultation_fee}<br>
+                ${formattedSpecializations}<br>
+                ${doctor.clinic_address}
+            </div>
+        `
     });
 
     marker.addListener("click", () => {
         infoWindow.open(map, marker);
     });
 }
-// Clear existing markers
+
 function clearMarkers() {
     markers.forEach(marker => marker.setMap(null));
     markers = [];
 }
-// Generate random icons on the page
-// Generate random icons on the page
+
+
 function generateIcons() {
     const icons = [
         "fa-heart", "fa-stethoscope", "fa-temperature-high", "fa-mug-hot"
@@ -66,10 +131,10 @@ function generateIcons() {
         const icon = $('<i>')
             .addClass(`fa ${iconClass} fa-icon`)
             .css({
-                top: `${Math.random() * 100}%`,  // Spread across 100% of the height
-                left: `${Math.random() * 100}%`, // Spread across 100% of the width
-                transform: `translate(-50%, -50%)`, // Centering each icon
-                fontSize: `${Math.random() * 12 + 18}px`, // Random size between 18px and 30px
+                top: `${Math.random() * 100}%`,  
+                left: `${Math.random() * 100}%`,
+                transform: `translate(-50%, -50%)`,
+                fontSize: `${Math.random() * 12 + 18}px`,
             });
 
         $('body').append(icon);
@@ -97,10 +162,8 @@ $(document).ready(() => {
             symptoms,
         };
 
-        // Show loading spinner
         $(".spinner").show();
 
-        // Send data to backend
         $.ajax({
             url: "http://127.0.0.1:5000/find-doctors-by-symptoms",
             method: "POST",

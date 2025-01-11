@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 import requests
 from bs4 import BeautifulSoup
 import re
@@ -12,33 +12,14 @@ from concurrent.futures import ThreadPoolExecutor
 
 @dataclass
 class APIConstants:
-    postman_api = ""
-    collection_uid = ""
     google_api = ""
     gemini_api = ""
 
 model = SentenceTransformer("all-MiniLM-L6-v2")
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', template_folder='templates')
 CORS(app)
 
 
-practo_specializations = [
-    "ophthalmologist",
-    "dermatologist",
-    "cardiologist",
-    "psychiatrist",
-    "gastroenterologist",
-    "ear-nose-throat-ent-specialist",
-    "gynecologist-obstetrician",
-    "neurologist",
-    "urologist",
-    "dentist",
-    "prosthodontist",
-    "orthodontist",
-    "pediatric-dentist",
-    "endodontist",
-    "implantologist"
-]
 
 def format_string(string: str):
     return string.lower().replace(" ", "-")
@@ -308,6 +289,10 @@ def find_doctors_by_symptoms():
     speciality = practo_specializations[max_match_index]
     doctors = find_doctors(lat, lng, radius, speciality)
     return jsonify(doctors)
+
+@app.route('/')
+def homepage():
+    return render_template('homepage.html')
 
 if __name__ == '__main__':
     app.run(debug=True)
