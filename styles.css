@@ -1,0 +1,128 @@
+body {
+    background-color: #e8f5e9;
+    font-family: 'Arial', sans-serif;
+    position: relative;
+}
+
+.container {
+    margin-top: 50px;
+    position: relative;
+    z-index: 2;
+}
+
+.map-container {
+    height: 400px;
+    margin-top: 20px;
+    position: relative;
+    z-index: 1;
+}
+
+.header {
+    background-color: #007bff;
+    color: white;
+    padding: 10px 15px; 
+    text-align: center;
+    border-radius: 5px; 
+    z-index: 3;
+    position: relative;
+    font-size: 1rem; 
+    line-height: 1.5; 
+    margin: 0;
+}
+
+.btn-custom {
+    background-color: #007bff;
+    color: white;
+}
+
+.spinner {
+    display: none;
+    margin: 20px auto;
+}
+
+.fa-icon {
+    position: absolute;
+    font-size: 24px;
+    color: lightgreen;
+    z-index: 0;
+    transition: all 0.3s ease;
+}
+
+.map-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    width: 100%;
+    height: 100vh; /* Full viewport height to ensure it occupies the entire screen height */
+    margin: 0; /* Remove any default margins */
+    padding: 0; /* Remove any default padding */
+    box-sizing: border-box; /* Ensure padding and borders are included in width/height calculations */
+}
+
+#map {
+    height: 85vh; /* Slightly reduced to leave room for potential headers/footers */
+    width: 90%; /* Keep proportional width */
+    max-width: 1200px; /* Limit maximum width for large screens */
+    border-radius: 15px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.map-title {
+    color: #ffffff;
+    margin-bottom: 10px;
+    font-size: 24px;
+    font-weight: bold;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    text-align: center; /* Center-align the title */
+}
+
+/* New styles for the doctor cards */
+.card {
+    width: 100%;              /* Makes the card take full width of the parent container */
+    margin-bottom: 10px;      /* Optional: Adds space between cards */
+}
+
+.card:hover {
+    transform: scale(1.05);
+}
+
+.card-body {
+    padding: 15px;
+}
+
+.card-title {
+    font-size: 1.25rem;
+    font-weight: bold;
+}
+
+.card-text {
+    font-size: 1rem;
+    color: #555;
+}
+
+.card img {
+    border-radius: 8px;
+    max-height: 180px;
+    object-fit: cover;
+}
+
+/* Ensuring the doctor cards take up the full available width */
+#doctor-list {
+    display: flex;
+    flex-direction: column;   /* Stacks the cards vertically */
+    align-items: stretch;     /* Ensures the cards stretch across the container */
+    gap: 20px;                /* Adds space between the cards */
+    margin-top: 20px;         /* Optional: Add margin from the top */
+}
+
+@media (min-width: 768px) {
+    #doctor-list {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+    .col-md-4 {
+        flex: 1 1 30%;
+    }
+}
