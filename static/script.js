@@ -21,7 +21,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 function loadGoogleMapsScript(apiKey) {
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initMap`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry&callback=initMap`;
     script.async = true;
     document.body.appendChild(script);
 }
@@ -291,17 +291,44 @@ $(document).ready(() => {
                 $("#doctor-list").empty();
                 clearMarkers();
                 $(".spinner").hide();
-
+            
                 if (response.length === 0) {
                     $("#doctor-list").html("<p class='text-center mt-4'>No doctors found in the specified area.</p>");
                     return;
                 }
-
+            
+                // Display the doctor count
+                $("#doctor-count").text(`Found ${response.length} doctors`);
+            
+                // Sort the doctors based on distance from the user's location
+                response.forEach((doctor, index) => {
+                    // Calculate the distance from the user's location to the doctor
+                    const userLat = location.lat();
+                    const userLng = location.lng();
+                    const doctorLat = parseFloat(doctor.lat);
+                    const doctorLng = parseFloat(doctor.lng);
+                    const distance = google.maps.geometry.spherical.computeDistanceBetween(
+                        new google.maps.LatLng(userLat, userLng),
+                        new google.maps.LatLng(doctorLat, doctorLng)
+                    );
+            
+                    // Add distance to the doctor object for sorting later
+                    doctor.distance = distance;
+                });
+            
+                // Sort doctors by distance (nearest first)
+                response.sort((a, b) => a.distance - b.distance);
+            
                 map.setCenter(location);
-
-                response.forEach((doctor) => {
+            
+                response.forEach((doctor, index) => {
+                    // Add a ranking field to each doctor object
+                    doctor.rank = index + 1;
+            
+                    // Add marker to the map
                     addMarker(doctor);
                     console.log("Doctor data:", doctor);
+            
                     const formattedSummary = doctor.generated_summary
                         ? doctor.generated_summary.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
                         : 'No summary available';
@@ -310,6 +337,8 @@ $(document).ready(() => {
                               .replace(/,\s*/g, ', ')
                               .replace(/\s*\/\s*/g, ' / ')
                         : 'Not specified';
+            
+                    // Append doctor details along with their rank
                     $("#doctor-list").append(`
                         <div class="col-md-4">
                             <div class="card">
@@ -319,18 +348,18 @@ $(document).ready(() => {
                                     <p class="card-text">Specialization: ${formattedSpecializations}</p>
                                     <p class="card-text">Experience: ${doctor.experience}</p>
                                     <p class="card-text">Address: ${doctor.address}</p>
-                                    <p class="card-text">Landmark: ${doctor.landmakr}</p>
                                     <p class="card-text">Consultation Fees: ₹${doctor.consultation_fee}</p>
                                     <p class="card-text">Summary: ${formattedSummary}</p>
+                                    <p class="card-text"><strong>  </strong> ${doctor.rank} / ${response.length}</p>
                                     <a href="${doctor.profile_url}" class="btn btn-custom" target="_blank">View Profile</a>
                                 </div>
                             </div>
                         </div>
                     `);
                 });
-
+            
                 adjustMapBounds();
-            },
+            },            
             error: (err) => {
                 console.error("AJAX Error:", err);
                 $(".spinner").hide();
